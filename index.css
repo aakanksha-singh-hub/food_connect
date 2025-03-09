@@ -343,6 +343,48 @@ section .section-intro {
   }
 }
 
+/* Statistics Section */
+.statistics {
+  background: var(--background);
+  padding: 4rem 0;
+  text-align: center;
+}
+
+.stats-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 2rem;
+}
+
+.stats-grid {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+}
+
+.stat-box {
+  background: var(--background-alt);
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  text-align: center;
+  width: 250px;
+  border: 1px solid var(--border);
+}
+
+.stat-box h3 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.stat-box p {
+  font-size: 1rem;
+  color: var(--text-light);
+}
+
+
 @media (max-width: 480px) {
   .hero h1 {
     font-size: 2.25rem;
