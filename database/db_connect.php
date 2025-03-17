@@ -3,7 +3,7 @@ $host = "localhost";
 $port = "5432";         // Default PostgreSQL port
 $dbname = "foodshare_db"; // Change this to your actual database name
 $user = "postgres";     // Your PostgreSQL username
-$password = "1234";  // Your PostgreSQL password
+$password = "helloworld123";  // Your PostgreSQL password
 
 // Create a connection string
 $dsn = "pgsql:host=$host;port=$port;dbname=$dbname";
