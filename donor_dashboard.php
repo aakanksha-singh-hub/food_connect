@@ -18,11 +18,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_donation'])) {
     $expiry_date = $_POST['expiry_date'];
 
     if (!empty($food_item) && !empty($quantity) && !empty($location)) {
-        
         try {
-            // Insert new donation
+            // Insert new donation with initial status as 'available'
             $stmt = $pdo->prepare("INSERT INTO donations (donor_id, food_item, quantity, location, expiry_date, status, donation_date) 
-                                   VALUES (:donor_id, :food_item, :quantity, :location, :expiry_date, 'pending', NOW())");
+                                 VALUES (:donor_id, :food_item, :quantity, :location, :expiry_date, 'available', NOW())");
             $stmt->execute([
                 'donor_id' => $donor_id,
                 'food_item' => $food_item,
@@ -31,30 +30,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_donation'])) {
                 'expiry_date' => $expiry_date
             ]);
 
-            $donation_id = $pdo->lastInsertId();
-
-            // Find the nearest available volunteer
-            $find_volunteer = $pdo->prepare("SELECT id FROM users WHERE user_type = 'volunteer' AND location = :location ORDER BY RANDOM() LIMIT 1");
-            $find_volunteer->execute(['location' => $location]);
-            $volunteer = $find_volunteer->fetch(PDO::FETCH_ASSOC);
-
-            if ($volunteer) {
-                $volunteer_id = $volunteer['id'];
-                
-                // Assign pickup to the found volunteer
-                $insert_pickup = $pdo->prepare("INSERT INTO pickups (donation_id, volunteer_id, status, pickup_date) VALUES (:donation_id, :volunteer_id, 'scheduled', NOW())");
-                $insert_pickup->execute([
-                    'donation_id' => $donation_id,
-                    'volunteer_id' => $volunteer_id
-                ]);
-                $_SESSION['success_message'] = "Donation added and assigned to Volunteer ID: $volunteer_id!";
-            } else {
-                // Insert pickup without assigning a volunteer yet
-                $insert_pickup = $pdo->prepare("INSERT INTO pickups (donation_id, volunteer_id, status, pickup_date) VALUES (:donation_id, NULL, 'pending', NOW())");
-                $insert_pickup->execute(['donation_id' => $donation_id]);
-                $_SESSION['error_message'] = "No available volunteer in this location. It'll be assigned soon.";
-            }
-
+            $_SESSION['success_message'] = "Donation added successfully! It will be visible to recipients in your area.";
+            
             // Prevent form resubmission issue by redirecting
             header("Location: donor_dashboard.php");
             exit();
