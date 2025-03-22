@@ -19,7 +19,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             // Store user data in session
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['user_type'] = $user['user_type'];
-
+            $_SESSION['location'] = $user['location'];  // ✅ Store user location
+        
             // Redirect to dashboard
             header("Location: dashboard.php");
             exit();
