@@ -59,7 +59,6 @@ Food Connect is a web-based platform that connects food donors with volunteers a
    http://localhost/food_connect/
    ```
 
-```
 
 ## User Types and Permissions
 1. **Donors**
