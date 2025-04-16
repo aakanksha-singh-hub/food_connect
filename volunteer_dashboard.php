@@ -37,18 +37,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $pickup = $check_stmt->fetch();
             if ($pickup) {
                 try {
-                    // Update pickup status and assign volunteer
+                // Update pickup status and assign volunteer
                     $update_pickup_stmt = $pdo->prepare("
-                        UPDATE pickups 
+                    UPDATE pickups 
                         SET status = 'pending', 
                             volunteer_id = :volunteer_id,
                             pickup_date = CURRENT_TIMESTAMP
-                        WHERE id = :pickup_id
+                    WHERE id = :pickup_id
                         RETURNING id
-                    ");
+                ");
                     $result = $update_pickup_stmt->execute([
-                        'volunteer_id' => $volunteer_id,
-                        'pickup_id' => $pickup_id
+                    'volunteer_id' => $volunteer_id,
+                    'pickup_id' => $pickup_id
                     ]);
 
                     if ($result) {
@@ -60,9 +60,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         ");
                         $update_donation_stmt->execute([
                             'donation_id' => $pickup['donation_id']
-                        ]);
-                        
-                        $pdo->commit();
+                ]);
+                
+                $pdo->commit();
                         $_SESSION['success_message'] = "Pickup task accepted successfully! The donation is now marked for delivery.";
                     } else {
                         throw new PDOException("Failed to update pickup status");
@@ -172,6 +172,59 @@ try {
 } catch (PDOException $e) {
     die("Database error: " . $e->getMessage());
 }
+
+// Fetch user profile
+try {
+    $profile_stmt = $pdo->prepare("
+        SELECT 
+            first_name,
+            last_name,
+            email,
+            phone,
+            location,
+            to_char(created_at, 'Month YYYY') as member_since,
+            user_type
+        FROM users 
+        WHERE id = :user_id
+    ");
+    
+    $profile_stmt->execute(['user_id' => $volunteer_id]);
+    $user_profile = $profile_stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$user_profile) {
+        $_SESSION['error_message'] = "Failed to load user profile.";
+        header("Location: logout.php");
+        exit();
+    }
+
+    // Fetch volunteer statistics
+    $stats_stmt = $pdo->prepare("
+        SELECT 
+            COUNT(DISTINCT CASE WHEN status = 'completed' THEN id END) as completed_pickups,
+            COUNT(DISTINCT CASE WHEN status = 'pending' AND volunteer_id = :volunteer_id THEN id END) as active_pickups
+        FROM pickups 
+        WHERE volunteer_id = :volunteer_id
+    ");
+    
+    $stats_stmt->execute(['volunteer_id' => $volunteer_id]);
+    $volunteer_stats = $stats_stmt->fetch(PDO::FETCH_ASSOC);
+
+    // Merge stats with profile
+    $user_profile = array_merge($user_profile, $volunteer_stats);
+
+} catch (PDOException $e) {
+    error_log("Database error: " . $e->getMessage());
+    $user_profile = [
+        'first_name' => $_SESSION['first_name'] ?? '',
+        'last_name' => $_SESSION['last_name'] ?? '',
+        'email' => $_SESSION['email'] ?? '',
+        'phone' => $_SESSION['phone'] ?? '',
+        'location' => $_SESSION['location'] ?? '',
+        'member_since' => date('F Y'),
+        'completed_pickups' => 0,
+        'active_pickups' => 0
+    ];
+}
 ?>
 
 <!DOCTYPE html>
@@ -218,12 +271,13 @@ try {
         .navbar {
             background: var(--background);
             border-bottom: 1px solid var(--border);
-            padding: 1rem 0;
+            padding: 0.5rem 0;
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             z-index: 1000;
+            height: 3.5rem;
         }
 
         .navbar .container {
@@ -234,10 +288,11 @@ try {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            height: 100%;
         }
 
         .logo {
-            font-size: 1.5rem;
+            font-size: 1.25rem;
             font-weight: 700;
             color: var(--primary);
             text-decoration: none;
@@ -246,46 +301,41 @@ try {
 
         .nav-links {
             display: flex;
-            gap: 1.5rem;
+            gap: 0.75rem;
             align-items: center;
-        }
-
-        .menu-toggle {
-            display: none;
+            margin-left: auto;
         }
 
         .nav-link {
             color: var(--text);
             text-decoration: none;
             font-weight: 500;
-            padding: 0.75rem 1rem;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
             transition: var(--transition);
             position: relative;
+            border-radius: 6px;
         }
 
         .nav-link:hover {
             color: var(--primary);
+            background: var(--primary-light);
         }
 
         .nav-link.active {
             color: var(--primary);
+            background: var(--primary-light);
         }
 
         .nav-link.active::after {
-            content: "";
-            position: absolute;
-            bottom: -1px;
-            left: 0;
-            width: 100%;
-            height: 2px;
-            background: var(--primary);
+            display: none;
         }
 
         /* Main Content */
         .main-content {
             margin-left: 0;
             padding: 2rem;
-            margin-top: 4rem;
+            margin-top: 3.5rem;
         }
 
         .welcome-header {
@@ -384,7 +434,18 @@ try {
             cursor: pointer;
             transition: var(--transition);
             border: none;
-            width: 100%;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
         }
 
         .accept-btn {
@@ -502,9 +563,150 @@ try {
             .main-content {
                 padding: 1rem;
             }
+        }
 
-            .dashboard-grid {
-                grid-template-columns: 1fr;
+        .menu-toggle {
+            display: none;
+        }
+
+        .menu-toggle i {
+            font-size: 1.5rem;
+            color: var(--text);
+        }
+
+        /* Profile Tab */
+        .profile-section {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            margin: -0.75rem;
+        }
+
+        .col-md-8 {
+            flex: 0 0 66.666667%;
+            max-width: 66.666667%;
+            padding: 0.75rem;
+        }
+
+        .col-md-6 {
+            flex: 0 0 50%;
+            max-width: 50%;
+            padding: 0.75rem;
+        }
+
+        .col-md-4 {
+            flex: 0 0 33.333333%;
+            max-width: 33.333333%;
+            padding: 0.75rem;
+        }
+
+        .card.shadow-sm {
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .card-title {
+            color: var(--text);
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .profile-info-item {
+            padding: 0.75rem;
+            border-radius: 8px;
+            transition: var(--transition);
+        }
+
+        .profile-info-item:hover {
+            background: var(--background-alt);
+        }
+
+        .profile-info-item label {
+            color: var(--text-light);
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 0.375rem;
+            display: block;
+        }
+
+        .profile-info-item p {
+            display: flex;
+            align-items: center;
+            font-size: 1rem;
+            color: var(--text);
+            margin: 0;
+        }
+
+        .profile-info-item i {
+            color: var(--primary);
+            width: 1.5rem;
+            font-size: 1rem;
+        }
+
+        .stat-item {
+            padding: 1rem;
+            border-radius: 8px;
+            background: var(--background-alt);
+            margin-bottom: 1rem;
+            transition: var(--transition);
+        }
+
+        .stat-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .stat-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .stat-item label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-light);
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .stat-item .h4 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .mt-4 {
+            margin-top: 1.5rem;
+        }
+
+        .w-100 {
+            width: 100%;
+        }
+
+        .me-2 {
+            margin-right: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .col-md-8, .col-md-6, .col-md-4 {
+                flex: 0 0 100%;
+                max-width: 100%;
+            }
+            
+            .profile-section {
+                padding: 1rem;
+            }
+            
+            .card-body {
+                padding: 1rem;
             }
         }
     </style>
@@ -512,7 +714,7 @@ try {
 <body>
     <!-- Navigation -->
     <nav class="navbar">
-        <div class="container">
+    <div class="container">
             <a href="index.html" class="logo">FoodConnect</a>
             <div class="nav-links">
                 <a href="#dashboard" class="nav-link active" data-tab="dashboard">Dashboard</a>
@@ -593,13 +795,13 @@ try {
                 Available Pickups
             </h2>
             <div class="dashboard-grid">
-                <?php if (empty($available_pickups)): ?>
+            <?php if (empty($available_pickups)): ?>
                     <div class="card">
                         <p style="text-align: center;">No available pickups in your area at the moment.</p>
                     </div>
-                <?php else: ?>
-                    <?php foreach ($available_pickups as $pickup): ?>
-                        <div class="card">
+            <?php else: ?>
+                <?php foreach ($available_pickups as $pickup): ?>
+                    <div class="card">
                             <h4>
                                 <i class="fas fa-box"></i>
                                 <?php echo htmlspecialchars($pickup['food_item']); ?>
@@ -620,19 +822,19 @@ try {
                                 <i class="fas fa-user"></i>
                                 <strong>Recipient:</strong> <?php echo htmlspecialchars($pickup['recipient_name'] . ' ' . $pickup['recipient_lastname']); ?>
                             </p>
-                            <div class="button-group">
-                                <form method="POST">
+                        <div class="button-group">
+                            <form method="POST">
                                     <input type="hidden" name="pickup_id" value="<?php echo $pickup['pickup_id']; ?>">
-                                    <input type="hidden" name="action" value="accept">
-                                    <button type="submit" class="btn accept-btn">
+                                <input type="hidden" name="action" value="accept">
+                                    <button type="submit" class="btn btn-primary">
                                         <i class="fas fa-check"></i>
                                         Accept Pickup
                                     </button>
-                                </form>
-                            </div>
+                            </form>
                         </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
             </div>
         </div>
 
@@ -643,13 +845,13 @@ try {
                 Assigned Pickups
             </h2>
             <div class="dashboard-grid">
-                <?php if (empty($assigned_pickups)): ?>
+            <?php if (empty($assigned_pickups)): ?>
                     <div class="card">
                         <p style="text-align: center;">You don't have any assigned pickups.</p>
                     </div>
-                <?php else: ?>
-                    <?php foreach ($assigned_pickups as $pickup): ?>
-                        <div class="card">
+            <?php else: ?>
+                <?php foreach ($assigned_pickups as $pickup): ?>
+                    <div class="card">
                             <h4>
                                 <i class="fas fa-box"></i>
                                 <?php echo htmlspecialchars($pickup['food_item']); ?>
@@ -670,27 +872,27 @@ try {
                                 <i class="fas fa-user"></i>
                                 <strong>Recipient:</strong> <?php echo htmlspecialchars($pickup['recipient_name'] . ' ' . $pickup['recipient_lastname']); ?>
                             </p>
-                            <div class="button-group">
-                                <form method="POST">
+                        <div class="button-group">
+                            <form method="POST">
                                     <input type="hidden" name="pickup_id" value="<?php echo $pickup['pickup_id']; ?>">
-                                    <input type="hidden" name="action" value="complete">
-                                    <button type="submit" class="btn complete-btn">
+                                <input type="hidden" name="action" value="complete">
+                                    <button type="submit" class="btn btn-primary">
                                         <i class="fas fa-check-circle"></i>
                                         Mark as Completed
                                     </button>
-                                </form>
-                                <form method="POST">
+                            </form>
+                            <form method="POST">
                                     <input type="hidden" name="pickup_id" value="<?php echo $pickup['pickup_id']; ?>">
-                                    <input type="hidden" name="action" value="reject">
-                                    <button type="submit" class="btn reject-btn">
+                                <input type="hidden" name="action" value="reject">
+                                    <button type="submit" class="btn btn-primary">
                                         <i class="fas fa-times"></i>
                                         Reject Pickup
                                     </button>
-                                </form>
-                            </div>
+                            </form>
                         </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
             </div>
         </div>
 
@@ -701,7 +903,7 @@ try {
                 Completed Pickups
             </h2>
             <div class="dashboard-grid">
-                <?php if (empty($completed_pickups)): ?>
+            <?php if (empty($completed_pickups)): ?>
                     <div class="card">
                         <p style="text-align: center;">You haven't completed any pickups yet.</p>
                     </div>
@@ -733,9 +935,111 @@ try {
                                 <strong>Completed on:</strong> <?php echo htmlspecialchars($pickup['completion_date']); ?>
                             </p>
                             <span class="status-badge status-completed">Completed</span>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
+            </div>
+        </div>
+
+        <!-- Profile Tab -->
+        <div id="profile" class="tab-content">
+            <h2 class="section-title">
+                <i class="fas fa-user"></i>
+                Profile Information
+            </h2>
+            <div class="profile-section">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="card shadow-sm">
+                            <div class="card-body">
+                                <h5 class="card-title">Personal Information</h5>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="profile-info-item">
+                                            <label class="text-muted">Full Name</label>
+                                            <p>
+                                                <i class="fas fa-user me-2"></i>
+                                                <?php echo htmlspecialchars($user_profile['first_name'] . ' ' . $user_profile['last_name']); ?>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="profile-info-item">
+                                            <label class="text-muted">Email Address</label>
+                                            <p>
+                                                <i class="fas fa-envelope me-2"></i>
+                                                <?php echo htmlspecialchars($user_profile['email']); ?>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="profile-info-item">
+                                            <label class="text-muted">Phone Number</label>
+                                            <p>
+                                                <i class="fas fa-phone me-2"></i>
+                                                <?php echo htmlspecialchars($user_profile['phone'] ?? 'Not set'); ?>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="profile-info-item">
+                                            <label class="text-muted">Location</label>
+                                            <p>
+                                                <i class="fas fa-map-marker-alt me-2"></i>
+                                                <?php echo htmlspecialchars($user_profile['location'] ?? 'Not set'); ?>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="profile-info-item">
+                                            <label class="text-muted">Member Since</label>
+                                            <p>
+                                                <i class="fas fa-calendar-alt me-2"></i>
+                                                <?php echo htmlspecialchars($user_profile['member_since']); ?>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="profile-info-item">
+                                            <label class="text-muted">Account Type</label>
+                                            <p>
+                                                <i class="fas fa-user-tag me-2"></i>
+                                                <?php echo ucfirst(htmlspecialchars($user_profile['user_type'] ?? 'volunteer')); ?>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card shadow-sm">
+                            <div class="card-body">
+                                <h5 class="card-title">Activity Overview</h5>
+                                <div class="stat-item">
+                                    <label class="text-muted">Completed Pickups</label>
+                                    <p class="h4">
+                                        <i class="fas fa-check-circle me-2"></i>
+                                        <?php echo intval($user_profile['completed_pickups']); ?>
+                                    </p>
+                                </div>
+                                <div class="stat-item">
+                                    <label class="text-muted">Active Pickups</label>
+                                    <p class="h4">
+                                        <i class="fas fa-clock me-2"></i>
+                                        <?php echo intval($user_profile['active_pickups']); ?>
+                                    </p>
+                                </div>
+                                <div class="mt-4">
+                                    <a href="edit_profile.php" class="btn btn-primary w-100">
+                                        <i class="fas fa-edit me-2"></i>
+                                        Edit Profile
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

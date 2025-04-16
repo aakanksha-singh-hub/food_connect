@@ -313,12 +313,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['accept_donation'])) {
         .navbar {
             background: var(--background);
             border-bottom: 1px solid var(--border);
-            padding: 1rem 0;
+            padding: 0.5rem 0;
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             z-index: 1000;
+            height: 3.5rem;
         }
 
         .navbar .container {
@@ -329,10 +330,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['accept_donation'])) {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            height: 100%;
         }
 
         .logo {
-            font-size: 1.5rem;
+            font-size: 1.25rem;
             font-weight: 700;
             color: var(--primary);
             text-decoration: none;
@@ -341,35 +343,34 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['accept_donation'])) {
 
         .nav-links {
             display: flex;
-            gap: 1.5rem;
+            gap: 0.75rem;
             align-items: center;
+            margin-left: auto;
         }
 
         .nav-link {
             color: var(--text);
             text-decoration: none;
             font-weight: 500;
-            padding: 0.75rem 1rem;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
             transition: var(--transition);
             position: relative;
+            border-radius: 6px;
         }
 
         .nav-link:hover {
             color: var(--primary);
+            background: var(--primary-light);
         }
 
         .nav-link.active {
             color: var(--primary);
+            background: var(--primary-light);
         }
 
         .nav-link.active::after {
-            content: "";
-            position: absolute;
-            bottom: -1px;
-            left: 0;
-            width: 100%;
-            height: 2px;
-            background: var(--primary);
+            display: none;
         }
 
         .menu-toggle {
@@ -381,7 +382,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['accept_donation'])) {
         .main-content {
             margin-left: 0;
             padding: 2rem;
-            margin-top: 4rem;
+            margin-top: 3.5rem;
         }
 
         .welcome-header {
@@ -826,7 +827,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['accept_donation'])) {
 <body>
     <!-- Navigation -->
     <nav class="navbar">
-        <div class="container">
+    <div class="container">
             <a href="index.html" class="logo">FoodConnect</a>
             <div class="nav-links">
                 <a href="#dashboard" class="nav-link active" data-tab="dashboard">Dashboard</a>

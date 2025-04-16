@@ -13,10 +13,10 @@ $donor_id = $_SESSION['user_id'];
 // Handle form submission for new donation
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_donation'])) {
     try {
-        $food_item = trim($_POST['food_item']);
-        $quantity = intval($_POST['quantity']);
-        $location = trim($_POST['location']);
-        $expiry_date = $_POST['expiry_date'];
+    $food_item = trim($_POST['food_item']);
+    $quantity = intval($_POST['quantity']);
+    $location = trim($_POST['location']);
+    $expiry_date = $_POST['expiry_date'];
 
         if (empty($food_item) || empty($quantity) || empty($location)) {
             throw new Exception("All fields are required!");
@@ -45,25 +45,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_donation'])) {
         ");
 
         $result = $stmt->execute([
-            'donor_id' => $donor_id,
-            'food_item' => $food_item,
-            'quantity' => $quantity,
-            'location' => $location,
-            'expiry_date' => $expiry_date
-        ]);
+                'donor_id' => $donor_id,
+                'food_item' => $food_item,
+                'quantity' => $quantity,
+                'location' => $location,
+                'expiry_date' => $expiry_date
+            ]);
 
         if ($result) {
             $_SESSION['success_message'] = "Donation added successfully! It will be visible to recipients in your area.";
         } else {
             throw new Exception("Failed to add donation. Please try again.");
         }
-
-        header("Location: donor_dashboard.php");
-        exit();
+            
+            header("Location: donor_dashboard.php");
+            exit();
 
     } catch (Exception $e) {
         $_SESSION['error_message'] = $e->getMessage();
-    } catch (PDOException $e) {
+        } catch (PDOException $e) {
         error_log("Database error: " . $e->getMessage());
         $_SESSION['error_message'] = "A database error occurred. Please try again.";
     }
@@ -212,12 +212,13 @@ try {
         .navbar {
             background: var(--background);
             border-bottom: 1px solid var(--border);
-            padding: 1rem 0;
+            padding: 0.5rem 0;
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             z-index: 1000;
+            height: 3.5rem;
         }
 
         .navbar .container {
@@ -228,10 +229,11 @@ try {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            height: 100%;
         }
 
         .logo {
-            font-size: 1.5rem;
+            font-size: 1.25rem;
             font-weight: 700;
             color: var(--primary);
             text-decoration: none;
@@ -240,46 +242,41 @@ try {
 
         .nav-links {
             display: flex;
-            gap: 1.5rem;
+            gap: 0.75rem;
             align-items: center;
-        }
-
-        .menu-toggle {
-            display: none;
+            margin-left: auto;
         }
 
         .nav-link {
             color: var(--text);
             text-decoration: none;
             font-weight: 500;
-            padding: 0.75rem 1rem;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
             transition: var(--transition);
             position: relative;
+            border-radius: 6px;
         }
 
         .nav-link:hover {
             color: var(--primary);
+            background: var(--primary-light);
         }
 
         .nav-link.active {
             color: var(--primary);
+            background: var(--primary-light);
         }
 
         .nav-link.active::after {
-            content: "";
-            position: absolute;
-            bottom: -1px;
-            left: 0;
-            width: 100%;
-            height: 2px;
-            background: var(--primary);
+            display: none;
         }
 
         /* Main Content */
         .main-content {
             margin-left: 0;
             padding: 2rem;
-            margin-top: 4rem;
+            margin-top: 3.5rem;
         }
 
         .welcome-header {
@@ -545,12 +542,21 @@ try {
                 grid-template-columns: 1fr;
             }
         }
+
+        .menu-toggle {
+            display: none;
+        }
+
+        .menu-toggle i {
+            font-size: 1.5rem;
+            color: var(--text);
+        }
     </style>
 </head>
 <body>
     <!-- Navigation -->
     <nav class="navbar">
-        <div class="container">
+    <div class="container">
             <a href="index.html" class="logo">FoodConnect</a>
             <div class="nav-links">
                 <a href="#dashboard" class="nav-link active" data-tab="dashboard">Dashboard</a>
@@ -643,7 +649,7 @@ try {
                     <button type="submit" name="submit_donation" class="btn btn-primary">
                         Submit Donation
                     </button>
-                </form>
+        </form>
             </div>
         </div>
 
@@ -728,7 +734,7 @@ try {
                     <div class="card">
                         <p style="text-align: center;">No accepted donations yet.</p>
                     </div>
-                <?php endif; ?>
+        <?php endif; ?>
             </div>
         </div>
 
