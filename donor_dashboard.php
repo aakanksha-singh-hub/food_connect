@@ -13,10 +13,10 @@ $donor_id = $_SESSION['user_id'];
 // Handle form submission for new donation
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_donation'])) {
     try {
-    $food_item = trim($_POST['food_item']);
-    $quantity = intval($_POST['quantity']);
-    $location = trim($_POST['location']);
-    $expiry_date = $_POST['expiry_date'];
+        $food_item = trim($_POST['food_item']);
+        $quantity = intval($_POST['quantity']);
+        $location = trim($_POST['location']);
+        $expiry_date = $_POST['expiry_date'];
 
         if (empty($food_item) || empty($quantity) || empty($location)) {
             throw new Exception("All fields are required!");
@@ -41,29 +41,28 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_donation'])) {
                 'available', 
                 CURRENT_TIMESTAMP
             )
-            RETURNING id
         ");
 
         $result = $stmt->execute([
-                'donor_id' => $donor_id,
-                'food_item' => $food_item,
-                'quantity' => $quantity,
-                'location' => $location,
-                'expiry_date' => $expiry_date
-            ]);
+            'donor_id' => $donor_id,
+            'food_item' => $food_item,
+            'quantity' => $quantity,
+            'location' => $location,
+            'expiry_date' => $expiry_date
+        ]);
 
         if ($result) {
             $_SESSION['success_message'] = "Donation added successfully! It will be visible to recipients in your area.";
         } else {
             throw new Exception("Failed to add donation. Please try again.");
         }
-            
-            header("Location: donor_dashboard.php");
-            exit();
+        
+        header("Location: donor_dashboard.php");
+        exit();
 
     } catch (Exception $e) {
         $_SESSION['error_message'] = $e->getMessage();
-        } catch (PDOException $e) {
+    } catch (PDOException $e) {
         error_log("Database error: " . $e->getMessage());
         $_SESSION['error_message'] = "A database error occurred. Please try again.";
     }
@@ -73,12 +72,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_donation'])) {
 try {
     $profile_stmt = $pdo->prepare("
         SELECT 
+            id,
             first_name,
             last_name,
             email,
             phone,
             location,
-            to_char(created_at, 'Month YYYY') as member_since
+            DATE_FORMAT(created_at, '%M %Y') as member_since
         FROM users 
         WHERE id = :user_id
     ");
@@ -87,13 +87,14 @@ try {
     $user_profile = $profile_stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$user_profile) {
-        $_SESSION['error_message'] = "Failed to load user profile.";
-        header("Location: logout.php");
-        exit();
+        throw new Exception("Failed to load user profile.");
     }
 
-} catch (PDOException $e) {
-    error_log("Database error: " . $e->getMessage());
+    // Debug logging
+    error_log("User profile data: " . print_r($user_profile, true));
+
+} catch (Exception $e) {
+    error_log("Error fetching profile: " . $e->getMessage());
     $user_profile = [
         'first_name' => $_SESSION['first_name'] ?? '',
         'last_name' => $_SESSION['last_name'] ?? '',
@@ -104,13 +105,17 @@ try {
     ];
 }
 
+// Debug logging
+error_log("Final user profile data: " . print_r($user_profile, true));
+
 // Fetch donations statistics
 try {
     $stats_stmt = $pdo->prepare("
         SELECT 
             COUNT(*) as total_donations,
             COUNT(CASE WHEN status = 'available' THEN 1 END) as available_donations,
-            COUNT(CASE WHEN status = 'accepted' THEN 1 END) as accepted_donations
+            COUNT(CASE WHEN status = 'accepted' OR status = 'in_transit' THEN 1 END) as accepted_donations,
+            COUNT(CASE WHEN status = 'delivered' THEN 1 END) as delivered_donations
         FROM donations 
         WHERE donor_id = :donor_id
     ");
@@ -133,8 +138,8 @@ try {
     $available_stmt = $pdo->prepare("
         SELECT 
             d.*,
-            to_char(d.donation_date, 'Month DD, YYYY') as formatted_date,
-            to_char(d.expiry_date, 'Month DD, YYYY') as formatted_expiry
+            DATE_FORMAT(d.donation_date, '%M %d, %Y') as formatted_date,
+            DATE_FORMAT(d.expiry_date, '%M %d, %Y') as formatted_expiry
         FROM donations d
         WHERE d.donor_id = :donor_id 
         AND d.status = 'available'
@@ -150,14 +155,14 @@ try {
             u.first_name as recipient_first_name,
             u.last_name as recipient_last_name,
             p.status as pickup_status,
-            to_char(d.donation_date, 'Month DD, YYYY') as formatted_date,
-            to_char(d.expiry_date, 'Month DD, YYYY') as formatted_expiry,
-            to_char(p.scheduled_time, 'Month DD, YYYY HH24:MI') as pickup_time
+            DATE_FORMAT(d.donation_date, '%M %d, %Y') as formatted_date,
+            DATE_FORMAT(d.expiry_date, '%M %d, %Y') as formatted_expiry,
+            DATE_FORMAT(p.scheduled_time, '%M %d, %Y %H:%i') as pickup_time
         FROM donations d
         LEFT JOIN users u ON d.recipient_id = u.id
         LEFT JOIN pickups p ON d.id = p.donation_id
         WHERE d.donor_id = :donor_id 
-        AND d.status = 'accepted'
+        AND (d.status = 'accepted' OR d.status = 'in_transit' OR d.status = 'delivered')
         ORDER BY d.donation_date DESC
     ");
     $accepted_stmt->execute(['donor_id' => $donor_id]);
@@ -192,6 +197,9 @@ try {
             --success: #10b981;
             --warning: #f59e0b;
             --transition: all 0.3s ease;
+            --container-width: 1200px;
+            --container-padding: 2rem;
+            --card-gap: 1.5rem;
         }
 
         * {
@@ -206,81 +214,30 @@ try {
             color: var(--text);
             background: var(--background-alt);
             min-height: 100vh;
+            padding-bottom: 2rem;
         }
 
-        /* Navbar Styles */
-        .navbar {
-            background: var(--background);
-            border-bottom: 1px solid var(--border);
-            padding: 0.5rem 0;
-            position: fixed;
-            top: 0;
-            left: 0;
+        .container {
             width: 100%;
-            z-index: 1000;
-            height: 3.5rem;
-        }
-
-        .navbar .container {
-            width: 100%;
-            max-width: 1200px;
+            max-width: var(--container-width);
             margin: 0 auto;
-            padding: 0 1.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            height: 100%;
-        }
-
-        .logo {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: var(--primary);
-            text-decoration: none;
-            letter-spacing: -0.5px;
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 0.75rem;
-            align-items: center;
-            margin-left: auto;
-        }
-
-        .nav-link {
-            color: var(--text);
-            text-decoration: none;
-            font-weight: 500;
-            padding: 0.5rem 0.75rem;
-            font-size: 0.875rem;
-            transition: var(--transition);
-            position: relative;
-            border-radius: 6px;
-        }
-
-        .nav-link:hover {
-            color: var(--primary);
-            background: var(--primary-light);
-        }
-
-        .nav-link.active {
-            color: var(--primary);
-            background: var(--primary-light);
-        }
-
-        .nav-link.active::after {
-            display: none;
+            padding: 0 var(--container-padding);
         }
 
         /* Main Content */
         .main-content {
-            margin-left: 0;
-            padding: 2rem;
-            margin-top: 3.5rem;
+            margin: 5rem auto 0;
+            padding: 0 var(--container-padding);
+            max-width: var(--container-width);
+            width: 100%;
         }
 
         .welcome-header {
-            margin-bottom: 2rem;
+            margin-bottom: 2.5rem;
+            padding: 1rem;
+            background: var(--background);
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
         .welcome-header h1 {
@@ -301,8 +258,16 @@ try {
         .dashboard-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
+            gap: var(--card-gap);
+            margin-bottom: 2.5rem;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text);
+            margin: 2.5rem 0 1.5rem;
+            padding: 0 1rem;
         }
 
         .card {
@@ -311,6 +276,10 @@ try {
             border-radius: 12px;
             padding: 1.5rem;
             transition: var(--transition);
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
         }
 
         .card:hover {
@@ -336,19 +305,25 @@ try {
             gap: 0.5rem;
         }
 
-        /* Form Styles */
+        .message {
+            margin: 1rem auto;
+            max-width: var(--container-width);
+            width: calc(100% - 4rem);
+        }
+
+        /* Form Section */
         .form-section {
             background: var(--background);
             border-radius: 12px;
             padding: 2rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin: 0 1rem 2.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
         .form-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1rem;
+            gap: var(--card-gap);
         }
 
         .form-group {
@@ -431,27 +406,7 @@ try {
             color: #9a3412;
         }
 
-        /* Messages */
-        .message {
-            padding: 1rem;
-            border-radius: 0.375rem;
-            margin-bottom: 1.5rem;
-            font-weight: 500;
-        }
-
-        .success {
-            background: #f0fdf4;
-            color: #166534;
-            border: 1px solid #bbf7d0;
-        }
-
-        .error {
-            background: #fef2f2;
-            color: #991b1b;
-            border: 1px solid #fecaca;
-        }
-
-        /* Profile Section */
+        /* Profile Section Styles */
         .profile-section {
             max-width: 1200px;
             margin: 0 auto;
@@ -463,38 +418,185 @@ try {
             gap: 1.5rem;
         }
 
-        .stat-item {
-            padding: 1rem;
-            border-radius: 8px;
+        .profile-card {
+            padding: 2rem;
+        }
+
+        .profile-card h4 {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .profile-info-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.25rem;
+            padding: 0.75rem;
             background: var(--background-alt);
-            margin-bottom: 1rem;
+            border-radius: 8px;
+            transition: var(--transition);
         }
 
-        .stat-item label {
-            display: block;
-            color: var(--text-light);
-            font-size: 0.875rem;
-            margin-bottom: 0.5rem;
+        .profile-info-item:hover {
+            transform: translateX(5px);
         }
 
-        .stat-item .value {
-            font-size: 1.5rem;
+        .profile-info-item i {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary-light);
+            color: var(--primary);
+            border-radius: 6px;
+            margin-right: 1rem;
+        }
+
+        .profile-info-item .label {
             font-weight: 600;
             color: var(--text);
+            width: 100px;
+        }
+
+        .profile-info-item .value {
+            color: var(--text-light);
+            flex: 1;
+        }
+
+        .profile-actions {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .profile-actions .btn {
+            width: 100%;
+            justify-content: center;
+            gap: 0.5rem;
         }
 
         /* Responsive Design */
         @media (max-width: 768px) {
+            :root {
+                --container-padding: 1rem;
+                --card-gap: 1rem;
+            }
+
+            .main-content {
+                margin-top: 4rem;
+            }
+
+            .profile-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .welcome-header {
+                margin-bottom: 2rem;
+            }
+
+            .form-section {
+                margin: 0 0 2rem;
+                padding: 1.5rem;
+            }
+        }
+
+        @media (min-width: 1400px) {
+            :root {
+                --container-width: 1320px;
+            }
+        }
+
+        /* Navbar Styles */
+        .navbar {
+            background: var(--background);
+            border-bottom: 1px solid var(--border);
+            padding: 0.5rem 0;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+            height: 4.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 100%;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-decoration: none;
+            letter-spacing: -0.5px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            margin-left: auto;
+        }
+
+        .nav-link {
+            color: var(--text);
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.5rem 0.75rem;
+            font-size: 1rem;
+            transition: var(--transition);
+            border-radius: 6px;
+        }
+
+        .nav-link:hover {
+            color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .nav-link.active {
+            color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .menu-toggle {
+            display: none;
+            cursor: pointer;
+            padding: 0.5rem;
+            background: none;
+            border: none;
+            color: var(--text);
+        }
+
+        .menu-toggle i {
+            font-size: 1.25rem;
+        }
+
+        @media (max-width: 768px) {
             .nav-links {
                 display: none;
                 position: fixed;
-                top: 4rem;
+                top: 3.5rem;
                 left: 0;
                 width: 100%;
                 background: var(--background);
                 flex-direction: column;
                 padding: 0;
                 border-bottom: 1px solid var(--border);
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             }
 
             .nav-links.active {
@@ -502,54 +604,19 @@ try {
             }
 
             .nav-link {
-                padding: 1rem;
                 width: 100%;
-                text-align: center;
+                padding: 1rem 1.5rem;
                 border-bottom: 1px solid var(--border);
+                border-radius: 0;
             }
 
             .nav-link:last-child {
                 border-bottom: none;
             }
 
-            .nav-link.active::after {
-                display: none;
-            }
-
-            .nav-link.active {
-                background: var(--primary-light);
-            }
-
             .menu-toggle {
                 display: block;
-                cursor: pointer;
             }
-
-            .menu-toggle i {
-                font-size: 1.5rem;
-                color: var(--text);
-            }
-
-            .main-content {
-                padding: 1rem;
-            }
-
-            .profile-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .form-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .menu-toggle {
-            display: none;
-        }
-
-        .menu-toggle i {
-            font-size: 1.5rem;
-            color: var(--text);
         }
     </style>
 </head>
@@ -724,8 +791,24 @@ try {
                         <p>
                             <i class="fas fa-info-circle"></i>
                             Status: 
-                            <span class="status-badge <?php echo $donation['pickup_status'] === 'completed' ? 'status-completed' : 'status-pending'; ?>">
-                                <?php echo ucfirst(htmlspecialchars($donation['pickup_status'] ?? 'pending')); ?>
+                            <span class="status-badge <?php 
+                                if ($donation['pickup_status'] === 'completed') {
+                                    echo 'status-completed';
+                                } elseif ($donation['donation_status'] === 'in_transit') {
+                                    echo 'status-assigned';
+                                } else {
+                                    echo 'status-pending';
+                                }
+                            ?>">
+                                <?php 
+                                    if ($donation['pickup_status'] === 'completed') {
+                                        echo 'Completed';
+                                    } elseif ($donation['donation_status'] === 'in_transit') {
+                                        echo 'In Transit';
+                                    } else {
+                                        echo ucfirst(htmlspecialchars($donation['pickup_status'] ?? 'pending')); 
+                                    }
+                                ?>
                             </span>
                         </p>
                     </div>
@@ -743,35 +826,36 @@ try {
             <h2 class="section-title">Profile Information</h2>
             <div class="profile-section">
                 <div class="profile-grid">
-                    <div class="card">
-                        <h4>Personal Information</h4>
-                        <p>
+                    <div class="card profile-card">
+                        <h4><i class="fas fa-user-circle"></i> Personal Information</h4>
+                        <div class="profile-info-item">
                             <i class="fas fa-user"></i>
-                            <strong>Name:</strong> 
-                            <?php echo htmlspecialchars($user_profile['first_name'] . ' ' . $user_profile['last_name']); ?>
-                        </p>
-                        <p>
+                            <span class="label">Name</span>
+                            <span class="value"><?php echo htmlspecialchars($user_profile['first_name'] . ' ' . $user_profile['last_name']); ?></span>
+                        </div>
+                        <div class="profile-info-item">
                             <i class="fas fa-envelope"></i>
-                            <strong>Email:</strong> 
-                            <?php echo htmlspecialchars($user_profile['email']); ?>
-                        </p>
-                        <p>
+                            <span class="label">Email</span>
+                            <span class="value"><?php echo htmlspecialchars($user_profile['email']); ?></span>
+                        </div>
+                        <div class="profile-info-item">
                             <i class="fas fa-phone"></i>
-                            <strong>Phone:</strong> 
-                            <?php echo htmlspecialchars($user_profile['phone'] ?? 'Not set'); ?>
-                        </p>
-                        <p>
+                            <span class="label">Phone</span>
+                            <span class="value"><?php echo htmlspecialchars($user_profile['phone'] ?? 'Not set'); ?></span>
+                        </div>
+                        <div class="profile-info-item">
                             <i class="fas fa-map-marker-alt"></i>
-                            <strong>Location:</strong> 
-                            <?php echo htmlspecialchars($user_profile['location'] ?? 'Not set'); ?>
-                        </p>
-                        <p>
+                            <span class="label">Location</span>
+                            <span class="value"><?php echo htmlspecialchars($user_profile['location'] ?? 'Not set'); ?></span>
+                        </div>
+                        <div class="profile-info-item">
                             <i class="fas fa-calendar-alt"></i>
-                            <strong>Member Since:</strong> 
-                            <?php echo htmlspecialchars($user_profile['member_since']); ?>
-                        </p>
-                        <div style="margin-top: 1rem;">
+                            <span class="label">Member Since</span>
+                            <span class="value"><?php echo htmlspecialchars($user_profile['member_since']); ?></span>
+                        </div>
+                        <div class="profile-actions">
                             <a href="edit_profile.php" class="btn btn-primary">
+                                <i class="fas fa-edit"></i>
                                 Edit Profile
                             </a>
                         </div>

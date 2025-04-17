@@ -13,79 +13,63 @@ $recipient_id = $_SESSION['user_id'];
 // Debug logging
 error_log("Fetching profile for user ID: " . $recipient_id);
 
-// Fetch complete user profile information
+// Fetch user profile
 try {
-    // First, fetch basic user information
-    $basic_profile_stmt = $pdo->prepare("
+    $profile_stmt = $pdo->prepare("
         SELECT 
-            id,
             first_name,
             last_name,
             email,
             phone,
             location,
-            user_type,
-            to_char(created_at, 'Month YYYY') as member_since
+            DATE_FORMAT(created_at, '%M %Y') as member_since
         FROM users 
         WHERE id = :user_id
     ");
     
-    $basic_profile_stmt->execute(['user_id' => $recipient_id]);
-    $user_profile = $basic_profile_stmt->fetch(PDO::FETCH_ASSOC);
+    $profile_stmt->execute(['user_id' => $recipient_id]);
+    $user_profile = $profile_stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$user_profile) {
-        error_log("User profile not found for ID: " . $recipient_id);
+        $_SESSION['error_message'] = "Failed to load user profile.";
         header("Location: logout.php");
-        exit;
+        exit();
     }
 
-    // Now fetch statistics
-    $stats_stmt = $pdo->prepare("
-        SELECT 
-            COUNT(DISTINCT d.id) as total_donations,
-            COUNT(DISTINCT CASE WHEN p.status = 'completed' THEN p.id END) as completed_pickups
-        FROM users u
-        LEFT JOIN donations d ON d.recipient_id = u.id
-        LEFT JOIN pickups p ON p.donation_id = d.id
-        WHERE u.id = :user_id
-    ");
-    
-    $stats_stmt->execute(['user_id' => $recipient_id]);
-    $user_stats = $stats_stmt->fetch(PDO::FETCH_ASSOC);
-
-    // Merge stats with profile
-    $user_profile = array_merge($user_profile, $user_stats);
-
-    // Debug logging
-    error_log("User profile fetched successfully: " . print_r($user_profile, true));
-
-    // Store essential information in session
-    $_SESSION['first_name'] = $user_profile['first_name'];
-    $_SESSION['last_name'] = $user_profile['last_name'];
-    $_SESSION['email'] = $user_profile['email'];
-    $_SESSION['phone'] = $user_profile['phone'];
-    $_SESSION['location'] = $user_profile['location'];
-    $_SESSION['created_at'] = $user_profile['member_since'];
-
-    } catch (PDOException $e) {
-    error_log("Database error while fetching user profile: " . $e->getMessage());
-    error_log("SQL State: " . $e->getCode());
-    
-    // Set default values if query fails
+} catch (PDOException $e) {
+    error_log("Database error: " . $e->getMessage());
     $user_profile = [
         'first_name' => $_SESSION['first_name'] ?? '',
         'last_name' => $_SESSION['last_name'] ?? '',
         'email' => $_SESSION['email'] ?? '',
         'phone' => $_SESSION['phone'] ?? '',
         'location' => $_SESSION['location'] ?? '',
-        'member_since' => $_SESSION['created_at'] ?? date('F Y'),
-        'user_type' => 'recipient',
+        'member_since' => date('F Y')
+    ];
+}
+
+// Fetch statistics
+try {
+    $stats_stmt = $pdo->prepare("
+        SELECT 
+            COUNT(*) as total_donations,
+            COUNT(CASE WHEN p.status = 'completed' THEN 1 END) as completed_pickups
+        FROM donations d
+        LEFT JOIN pickups p ON d.id = p.donation_id
+        WHERE d.recipient_id = :recipient_id
+    ");
+    
+    $stats_stmt->execute(['recipient_id' => $recipient_id]);
+    $donation_stats = $stats_stmt->fetch(PDO::FETCH_ASSOC);
+
+} catch (PDOException $e) {
+    error_log("Database error: " . $e->getMessage());
+    $donation_stats = [
         'total_donations' => 0,
         'completed_pickups' => 0
     ];
 }
 
-// Fetch recipient location for donations query
 $recipient_location = $user_profile['location'] ?? $_SESSION['location'] ?? '';
 
 if (empty($recipient_location)) {
@@ -207,18 +191,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['accept_donation'])) {
             WHERE id = :donation_id 
             AND status = 'available' 
             AND recipient_id IS NULL
-            RETURNING id, status
         ");
         
-        $update_result = $update_stmt->execute([
+        $result = $update_stmt->execute([
             'recipient_id' => $recipient_id,
             'donation_id' => $donation_id
         ]);
         
-        $updated_donation = $update_stmt->fetch();
-        error_log("Update result: " . ($updated_donation ? "Success" : "Failed"));
-        
-        if (!$updated_donation) {
+        if (!$result || $update_stmt->rowCount() === 0) {
             throw new Exception("Failed to update donation status");
         }
         
@@ -234,17 +214,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['accept_donation'])) {
                 :donation_id, 
                 'pending', 
                 CURRENT_TIMESTAMP,
-                CURRENT_TIMESTAMP + INTERVAL '7 days',
-                CURRENT_TIMESTAMP + INTERVAL '1 day'
+                DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 7 DAY),
+                DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 1 DAY)
             )
-            RETURNING id, status
         ");
         
         $pickup_result = $pickup_stmt->execute(['donation_id' => $donation_id]);
-        $created_pickup = $pickup_stmt->fetch();
-        error_log("Pickup creation result: " . ($created_pickup ? "Success" : "Failed"));
         
-        if (!$created_pickup) {
+        if (!$pickup_result) {
             throw new Exception("Failed to create pickup request");
         }
         
@@ -290,7 +267,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['accept_donation'])) {
             --border: #e2e8f0;
             --error: #ef4444;
             --success: #10b981;
+            --warning: #f59e0b;
             --transition: all 0.3s ease;
+            --container-width: 1200px;
+            --container-padding: 2rem;
+            --card-gap: 1.5rem;
         }
 
         * {
@@ -307,86 +288,30 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['accept_donation'])) {
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            padding-bottom: 2rem;
         }
 
-        /* Navbar Styles */
-        .navbar {
-            background: var(--background);
-            border-bottom: 1px solid var(--border);
-            padding: 0.5rem 0;
-            position: fixed;
-            top: 0;
-            left: 0;
+        .container {
             width: 100%;
-            z-index: 1000;
-            height: 3.5rem;
-        }
-
-        .navbar .container {
-            width: 100%;
-            max-width: 1200px;
+            max-width: var(--container-width);
             margin: 0 auto;
-            padding: 0 1.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            height: 100%;
+            padding: 0 var(--container-padding);
         }
 
-        .logo {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: var(--primary);
-            text-decoration: none;
-            letter-spacing: -0.5px;
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 0.75rem;
-            align-items: center;
-            margin-left: auto;
-        }
-
-        .nav-link {
-            color: var(--text);
-            text-decoration: none;
-            font-weight: 500;
-            padding: 0.5rem 0.75rem;
-            font-size: 0.875rem;
-            transition: var(--transition);
-            position: relative;
-            border-radius: 6px;
-        }
-
-        .nav-link:hover {
-            color: var(--primary);
-            background: var(--primary-light);
-        }
-
-        .nav-link.active {
-            color: var(--primary);
-            background: var(--primary-light);
-        }
-
-        .nav-link.active::after {
-            display: none;
-        }
-
-        .menu-toggle {
-            display: none;
-            cursor: pointer;
-        }
-
-        /* Dashboard Layout */
+        /* Main Content */
         .main-content {
-            margin-left: 0;
-            padding: 2rem;
-            margin-top: 3.5rem;
+            margin: 5rem auto 0;
+            padding: 0 var(--container-padding);
+            max-width: var(--container-width);
+            width: 100%;
         }
 
         .welcome-header {
-            margin-bottom: 2rem;
+            margin-bottom: 2.5rem;
+            padding: 1rem;
+            background: var(--background);
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
         .welcome-header h1 {
@@ -408,22 +333,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['accept_donation'])) {
         .dashboard-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
+            gap: var(--card-gap);
+            margin-bottom: 2.5rem;
         }
 
         .section-title {
             font-size: 1.25rem;
             font-weight: 600;
             color: var(--text);
-            margin-bottom: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .section-title i {
-            color: var(--primary);
+            margin: 2.5rem 0 1.5rem;
+            padding: 0 1rem;
         }
 
         .card {
@@ -435,6 +354,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['accept_donation'])) {
             height: 100%;
             display: flex;
             flex-direction: column;
+            gap: 1rem;
         }
 
         .card:hover {
@@ -532,11 +452,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['accept_donation'])) {
         }
 
         .message {
-            padding: 1rem;
-            border-radius: 6px;
-            margin-bottom: 1.5rem;
-            font-size: 0.9375rem;
-            font-weight: 500;
+            margin: 1rem auto;
+            max-width: var(--container-width);
+            width: calc(100% - 4rem);
         }
 
         .success { 
@@ -551,194 +469,124 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['accept_donation'])) {
             border: 1px solid #fecaca;
         }
 
-        /* Profile Section Styles */
+        /* Profile Section */
         .profile-section {
-            max-width: 1200px;
+            max-width: var(--container-width);
             margin: 0 auto;
+            padding: 0 1rem;
         }
 
-        .row {
-            display: flex;
-            flex-wrap: wrap;
-            margin: -0.75rem;
+        .profile-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: var(--card-gap);
         }
 
-        .col-md-8 {
-            flex: 0 0 66.666667%;
-            max-width: 66.666667%;
-            padding: 0.75rem;
-        }
-
-        .col-md-6 {
-            flex: 0 0 50%;
-            max-width: 50%;
-            padding: 0.75rem;
-        }
-
-        .col-md-4 {
-            flex: 0 0 33.333333%;
-            max-width: 33.333333%;
-            padding: 0.75rem;
-        }
-
-        .card {
-            background: var(--background);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            transition: var(--transition);
-            height: 100%;
-        }
-
-        .card.shadow-sm {
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        }
-
-        .card:hover {
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-
-        .card-body {
+        .profile-card {
             padding: 1.5rem;
         }
 
-        .card-title {
-            color: var(--text);
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
+        .profile-card h4 {
+            font-size: 1.1rem;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.75rem;
             border-bottom: 1px solid var(--border);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
 
-        .mb-4 {
-            margin-bottom: 1.5rem;
-        }
-
-        .mb-3 {
-            margin-bottom: 1rem;
-        }
-
-        .mb-0 {
-            margin-bottom: 0;
-        }
-
-        .me-2 {
-            margin-right: 0.5rem;
-        }
-
-        .text-muted {
-            color: var(--text-light);
-            font-size: 0.875rem;
-            font-weight: 500;
-            margin-bottom: 0.375rem;
-            display: block;
-        }
-
-        /* Profile Information Display */
         .profile-info-item {
-            padding: 0.75rem;
-            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            background: var(--background-alt);
+            border-radius: 6px;
             transition: var(--transition);
         }
 
         .profile-info-item:hover {
-            background: var(--background-alt);
-        }
-
-        .profile-info-item p {
-            display: flex;
-            align-items: center;
-            font-size: 1rem;
-            color: var(--text);
-            margin: 0;
+            transform: translateX(3px);
         }
 
         .profile-info-item i {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary-light);
             color: var(--primary);
-            width: 1.5rem;
-            font-size: 1rem;
+            border-radius: 4px;
+            margin-right: 0.75rem;
+            font-size: 0.875rem;
         }
 
-        /* Statistics Card */
+        .profile-info-item .label {
+            font-weight: 500;
+            color: var(--text);
+            width: 80px;
+            font-size: 0.9rem;
+        }
+
+        .profile-info-item .value {
+            color: var(--text-light);
+            flex: 1;
+            font-size: 0.9rem;
+        }
+
+        .profile-actions {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .profile-actions .btn {
+            width: 100%;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+        }
+
         .stat-item {
-            padding: 1rem;
-            border-radius: 8px;
+            padding: 0.75rem;
+            border-radius: 6px;
             background: var(--background-alt);
-            margin-bottom: 1rem;
-            transition: var(--transition);
-        }
-
-        .stat-item:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        }
-
-        .stat-item:last-child {
-            margin-bottom: 0;
+            margin-bottom: 0.75rem;
         }
 
         .stat-item label {
+            font-size: 0.875rem;
+            color: var(--text-light);
+            margin-bottom: 0.25rem;
             display: block;
-            margin-bottom: 0.5rem;
         }
 
-        .stat-item .h4 {
-            font-size: 1.5rem;
+        .stat-item .value {
+            font-size: 1.25rem;
             font-weight: 600;
             color: var(--text);
-            margin: 0;
-            display: flex;
-            align-items: center;
-        }
-
-        .stat-item i {
-            color: var(--primary);
-        }
-
-        @media (max-width: 768px) {
-            .col-md-8, .col-md-6, .col-md-4 {
-                flex: 0 0 100%;
-                max-width: 100%;
-            }
-            
-            .profile-section {
-                padding: 1rem;
-            }
-            
-            .card-body {
-                padding: 1rem;
-            }
-        }
-
-        @media (max-width: 640px) {
-            .dashboard-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .card {
-                margin-bottom: 1rem;
-            }
         }
 
         /* Footer */
         .footer {
+            margin-top: auto;
             background: var(--background);
             border-top: 1px solid var(--border);
             padding: 3rem 0 1.5rem;
-            margin-top: auto;
         }
 
         .footer .container {
-            width: 100%;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 1.5rem;
+            padding: 0 var(--container-padding);
         }
 
         .footer-content {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 2rem;
+            gap: var(--card-gap);
             margin-bottom: 2rem;
         }
 
@@ -772,17 +620,121 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['accept_donation'])) {
             font-size: 0.875rem;
         }
 
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            :root {
+                --container-padding: 1rem;
+                --card-gap: 1rem;
+            }
+
+            .main-content {
+                margin-top: 4rem;
+            }
+
+            .profile-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .welcome-header {
+                margin-bottom: 2rem;
+            }
+
+            .footer {
+                padding: 2rem 0 1rem;
+            }
+        }
+
+        @media (min-width: 1400px) {
+            :root {
+                --container-width: 1320px;
+            }
+        }
+
+        /* Navbar Styles */
+        .navbar {
+            background: var(--background);
+            border-bottom: 1px solid var(--border);
+            padding: 0.5rem 0;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+            height: 4.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 100%;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-decoration: none;
+            letter-spacing: -0.5px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            margin-left: auto;
+        }
+
+        .nav-link {
+            color: var(--text);
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.5rem 0.75rem;
+            font-size: 1rem;
+            transition: var(--transition);
+            border-radius: 6px;
+        }
+
+        .nav-link:hover {
+            color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .nav-link.active {
+            color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .menu-toggle {
+            display: none;
+            cursor: pointer;
+            padding: 0.5rem;
+            background: none;
+            border: none;
+            color: var(--text);
+        }
+
+        .menu-toggle i {
+            font-size: 1.25rem;
+        }
+
         @media (max-width: 768px) {
             .nav-links {
                 display: none;
                 position: fixed;
-                top: 4rem;
+                top: 3.5rem;
                 left: 0;
                 width: 100%;
                 background: var(--background);
                 flex-direction: column;
                 padding: 0;
                 border-bottom: 1px solid var(--border);
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             }
 
             .nav-links.active {
@@ -790,36 +742,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['accept_donation'])) {
             }
 
             .nav-link {
-                padding: 1rem;
                 width: 100%;
-                text-align: center;
+                padding: 1rem 1.5rem;
                 border-bottom: 1px solid var(--border);
+                border-radius: 0;
             }
 
             .nav-link:last-child {
                 border-bottom: none;
             }
 
-            .nav-link.active::after {
-                display: none;
-            }
-
-            .nav-link.active {
-                background: var(--primary-light);
-            }
-
             .menu-toggle {
                 display: block;
-                cursor: pointer;
-            }
-
-            .menu-toggle i {
-                font-size: 1.5rem;
-                color: var(--text);
-            }
-
-            .main-content {
-                padding: 1rem;
             }
         }
     </style>
@@ -961,8 +895,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['accept_donation'])) {
                         <p>
                             <i class="fas fa-info-circle"></i>
                             Status: 
-                            <span class="status-badge <?php echo $donation['pickup_status'] === 'completed' ? 'status-completed' : 'status-pending'; ?>">
-                                <?php echo ucfirst(htmlspecialchars($donation['pickup_status'] ?? 'pending')); ?>
+                            <span class="status-badge <?php 
+                                if ($donation['pickup_status'] === 'completed') {
+                                    echo 'status-completed';
+                                } elseif ($donation['donation_status'] === 'in_transit') {
+                                    echo 'status-assigned';
+                                } else {
+                                    echo 'status-pending';
+                                }
+                            ?>">
+                                <?php 
+                                    if ($donation['pickup_status'] === 'completed') {
+                                        echo 'Completed';
+                                    } elseif ($donation['donation_status'] === 'in_transit') {
+                                        echo 'In Transit';
+                                    } else {
+                                        echo ucfirst(htmlspecialchars($donation['pickup_status'] ?? 'pending')); 
+                                    }
+                                ?>
                             </span>
                         </p>
                     </div>
@@ -982,95 +932,50 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['accept_donation'])) {
                 Profile Information
             </h2>
             <div class="profile-section">
-                <div class="row">
-                    <div class="col-md-8">
-                        <div class="card shadow-sm">
-                            <div class="card-body">
-                                <h5 class="card-title">Personal Information</h5>
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="profile-info-item">
-                                            <label class="text-muted">Full Name</label>
-                                            <p>
-                                                <i class="fas fa-user me-2"></i>
-                                                <?php echo htmlspecialchars($user_profile['first_name'] . ' ' . $user_profile['last_name']); ?>
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="profile-info-item">
-                                            <label class="text-muted">Email Address</label>
-                                            <p>
-                                                <i class="fas fa-envelope me-2"></i>
-                                                <?php echo htmlspecialchars($user_profile['email']); ?>
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="profile-info-item">
-                                            <label class="text-muted">Phone Number</label>
-                                            <p>
-                                                <i class="fas fa-phone me-2"></i>
-                                                <?php echo htmlspecialchars($user_profile['phone'] ?? 'Not set'); ?>
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="profile-info-item">
-                                            <label class="text-muted">Location</label>
-                                            <p>
-                                                <i class="fas fa-map-marker-alt me-2"></i>
-                                                <?php echo htmlspecialchars($user_profile['location'] ?? 'Not set'); ?>
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="profile-info-item">
-                                            <label class="text-muted">Member Since</label>
-                                            <p>
-                                                <i class="fas fa-calendar-alt me-2"></i>
-                                                <?php echo htmlspecialchars($user_profile['member_since']); ?>
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="profile-info-item">
-                                            <label class="text-muted">Account Type</label>
-                                            <p>
-                                                <i class="fas fa-user-tag me-2"></i>
-                                                <?php echo ucfirst(htmlspecialchars($user_profile['user_type'])); ?>
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                <div class="profile-grid">
+                    <div class="card profile-card">
+                        <h4><i class="fas fa-user-circle"></i> Personal Information</h4>
+                        <div class="profile-info-item">
+                            <i class="fas fa-user"></i>
+                            <span class="label">Name</span>
+                            <span class="value"><?php echo htmlspecialchars($user_profile['first_name'] . ' ' . $user_profile['last_name']); ?></span>
+                        </div>
+                        <div class="profile-info-item">
+                            <i class="fas fa-envelope"></i>
+                            <span class="label">Email</span>
+                            <span class="value"><?php echo htmlspecialchars($user_profile['email']); ?></span>
+                        </div>
+                        <div class="profile-info-item">
+                            <i class="fas fa-phone"></i>
+                            <span class="label">Phone</span>
+                            <span class="value"><?php echo htmlspecialchars($user_profile['phone'] ?? 'Not set'); ?></span>
+                        </div>
+                        <div class="profile-info-item">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span class="label">Location</span>
+                            <span class="value"><?php echo htmlspecialchars($user_profile['location'] ?? 'Not set'); ?></span>
+                        </div>
+                        <div class="profile-info-item">
+                            <i class="fas fa-calendar-alt"></i>
+                            <span class="label">Member Since</span>
+                            <span class="value"><?php echo htmlspecialchars($user_profile['member_since']); ?></span>
+                        </div>
+                        <div class="profile-actions">
+                            <a href="edit_profile.php" class="btn btn-primary">
+                                <i class="fas fa-edit"></i>
+                                Edit Profile
+                            </a>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="card shadow-sm">
-                            <div class="card-body">
-                                <h5 class="card-title">Activity Overview</h5>
-                                <div class="stat-item">
-                                    <label class="text-muted">Total Accepted Donations</label>
-                                    <p class="h4">
-                                        <i class="fas fa-gift me-2"></i>
-                                        <?php echo intval($user_profile['total_donations']); ?>
-                                    </p>
-                                </div>
-                                <div class="stat-item">
-                                    <label class="text-muted">Completed Pickups</label>
-                                    <p class="h4">
-                                        <i class="fas fa-check-circle me-2"></i>
-                                        <?php echo intval($user_profile['completed_pickups']); ?>
-                                    </p>
-                                </div>
-                                <div class="mt-4">
-                                    <a href="edit_profile.php" class="btn btn-primary w-100">
-                                        <i class="fas fa-edit me-2"></i>
-                                        Edit Profile
-                                    </a>
-                                </div>
-                            </div>
+                    <div class="card">
+                        <h4>Activity Overview</h4>
+                        <div class="stat-item">
+                            <label>Total Accepted Donations</label>
+                            <p class="value"><?php echo intval($donation_stats['total_donations']); ?></p>
+                        </div>
+                        <div class="stat-item">
+                            <label>Completed Pickups</label>
+                            <p class="value"><?php echo intval($donation_stats['completed_pickups']); ?></p>
                         </div>
                     </div>
                 </div>
