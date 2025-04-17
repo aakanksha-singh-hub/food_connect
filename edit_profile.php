@@ -43,42 +43,39 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             throw new Exception("This email address is already in use by another account.");
         }
         
-        // Update user profile
-        $update_stmt = $pdo->prepare("
-            UPDATE users 
-            SET first_name = :first_name,
-                last_name = :last_name,
-                email = :email,
-                phone = :phone,
-                location = :location
-            WHERE id = :user_id
-            RETURNING id
-        ");
-        
-        $result = $update_stmt->execute([
+        // Update user information
+        $update_sql = "UPDATE users 
+                      SET first_name = :first_name,
+                          last_name = :last_name,
+                          email = :email,
+                          phone = :phone,
+                          location = :location
+                      WHERE id = :user_id";
+
+        $stmt = $pdo->prepare($update_sql);
+        $stmt->execute([
             'first_name' => $first_name,
             'last_name' => $last_name,
             'email' => $email,
             'phone' => $phone,
             'location' => $location,
-            'user_id' => $user_id
+            'user_id' => $_SESSION['user_id']
         ]);
-        
-        if ($result) {
-            // Update session variables
-            $_SESSION['first_name'] = $first_name;
-            $_SESSION['last_name'] = $last_name;
-            $_SESSION['email'] = $email;
-            $_SESSION['phone'] = $phone;
-            $_SESSION['location'] = $location;
-            
+
+        // Fetch the updated user data
+        $select_sql = "SELECT id, first_name, last_name, email, phone, location, user_type 
+                      FROM users 
+                      WHERE id = :user_id";
+        $stmt = $pdo->prepare($select_sql);
+        $stmt->execute(['user_id' => $_SESSION['user_id']]);
+        $updated_user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($updated_user) {
+            $_SESSION['user'] = $updated_user;
             $_SESSION['success_message'] = "Profile updated successfully!";
-        } else {
-            throw new Exception("Failed to update profile. Please try again.");
+            header("Location: edit_profile.php");
+            exit();
         }
-        
-        header("Location: " . $_SESSION['user_type'] . "_dashboard.php");
-        exit();
         
     } catch (Exception $e) {
         $_SESSION['error_message'] = $e->getMessage();
