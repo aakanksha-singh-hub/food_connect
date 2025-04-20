@@ -1,4 +1,3 @@
-/* Catalogue page styles - minimalist design */
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
 
 :root {
@@ -39,7 +38,6 @@ body {
   padding: 0 1.5rem;
 }
 
-/* Navigation */
 .navbar {
   position: fixed;
   top: 0;
@@ -98,13 +96,11 @@ body {
   width: 100%;
 }
 
-/* Mobile menu toggle */
 .menu-toggle {
   display: none;
   cursor: pointer;
 }
 
-/* Hero Section */
 .hero-section {
   height: 60vh;
   background: linear-gradient(
@@ -129,7 +125,6 @@ body {
   line-height: 1.2;
 }
 
-/* Section Styles */
 section {
   padding: 5rem 0;
 }
@@ -161,7 +156,6 @@ h3 {
   font-weight: 600;
 }
 
-/* Mission Section */
 .mission-section p {
   max-width: 800px;
   margin: 0 auto;
@@ -175,7 +169,6 @@ h3 {
   font-weight: 600;
 }
 
-/* Process Grid */
 .process-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -210,7 +203,6 @@ h3 {
   color: var(--text-light);
 }
 
-/* Features Grid */
 .features-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -240,7 +232,6 @@ h3 {
   color: var(--text-light);
 }
 
-/* Benefits Section */
 .benefits-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -270,7 +261,6 @@ h3 {
   color: var(--text-light);
 }
 
-/* Join Section */
 .join-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -322,7 +312,6 @@ h3 {
   transform: translateY(-2px);
 }
 
-/* Why Us Section */
 .why-us-section {
   text-align: center;
 }
@@ -380,7 +369,6 @@ h3 {
   box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
 }
 
-/* Footer */
 .footer {
   background: var(--text);
   color: white;
@@ -426,7 +414,6 @@ h3 {
   font-size: 0.875rem;
 }
 
-/* Responsive Design */
 @media (max-width: 768px) {
   .menu-toggle {
     display: block;
@@ -457,7 +444,6 @@ h3 {
   }
 }
 
-/* Responsive Design */
 @media (max-width: 768px) {
   .menu-toggle {
     display: block;

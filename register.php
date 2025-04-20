@@ -7,7 +7,6 @@ $success_message = '';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     try {
-        // Validate and sanitize input
         $firstName = trim($_POST['firstName']);
         $lastName = trim($_POST['lastName']);
         $email = filter_var(trim($_POST['email']), FILTER_SANITIZE_EMAIL);
@@ -18,7 +17,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $location = trim($_POST['location']);
         $about = trim($_POST['about']);
 
-        // Validation checks
         if (empty($firstName) || empty($lastName) || empty($email) || empty($phone) || empty($password) || empty($userType) || empty($location)) {
             throw new Exception("All fields are required.");
         }
@@ -39,17 +37,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             throw new Exception("Password must be at least 8 characters long.");
         }
 
-        // Check if email already exists
         $check_stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
         $check_stmt->execute([$email]);
         if ($check_stmt->rowCount() > 0) {
             throw new Exception("This email address is already registered.");
-        }
+    }
 
-        // Hash password
     $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
-        // Insert new user
         $stmt = $pdo->prepare("
             INSERT INTO users (
                 first_name, 
@@ -122,7 +117,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </style>
 </head>
 <body>
-    <!-- Navigation -->
     <nav class="navbar">
         <div class="container">
             <a href="index.html" class="logo">FoodConnect</a>
@@ -254,7 +248,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 });
             });
 
-            // Password match validation
             const form = document.querySelector('form');
             const password = document.getElementById('password');
             const confirmPassword = document.getElementById('confirmPassword');
