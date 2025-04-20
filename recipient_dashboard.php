@@ -467,21 +467,41 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['accept_donation'])) {
         }
 
         .message {
-            margin: 1rem auto;
             max-width: var(--container-width);
             width: calc(100% - 4rem);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+            line-height: 1.5;
         }
 
         .success { 
-            background: #f0fdf4;
-            color: #166534;
-            border: 1px solid #bbf7d0;
+            background: #ecfdf5;
+            color: #065f46;
+            border: 1px solid #6ee7b7;
+        }
+
+        .success::before {
+            content: '\f00c';
+            font-family: 'Font Awesome 5 Free';
+            font-weight: 900;
+            color: #059669;
         }
 
         .error { 
             background: #fef2f2;
             color: #991b1b;
             border: 1px solid #fecaca;
+        }
+
+        .error::before {
+            content: '\f071';
+            font-family: 'Font Awesome 5 Free';
+            font-weight: 900;
+            color: #dc2626;
         }
 
         /* Profile Section */
@@ -567,23 +587,37 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['accept_donation'])) {
         }
 
         .stat-item {
-            padding: 0.75rem;
-            border-radius: 6px;
+            padding: 1rem;
+            border-radius: 8px;
             background: var(--background-alt);
-            margin-bottom: 0.75rem;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border);
+            transition: var(--transition);
+        }
+
+        .stat-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
         }
 
         .stat-item label {
             font-size: 0.875rem;
             color: var(--text-light);
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.5rem;
             display: block;
+            font-weight: 500;
         }
 
         .stat-item .value {
-            font-size: 1.25rem;
+            font-size: 1.5rem;
             font-weight: 600;
             color: var(--text);
+            margin: 0;
+        }
+
+        .stat-item i {
+            color: var(--primary);
+            margin-right: 0.5rem;
         }
 
         /* Footer */
@@ -989,14 +1023,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['accept_donation'])) {
                         </div>
                     </div>
                     <div class="card">
-                        <h4>Activity Overview</h4>
+                        <h4><i class="fas fa-chart-line"></i> Activity Overview</h4>
                         <div class="stat-item">
-                            <label>Total Accepted Donations</label>
-                            <p class="value"><?php echo intval($donation_stats['total_donations']); ?></p>
+                            <label><i class="fas fa-box"></i>Total Requests</label>
+                            <p class="value"><?php echo intval($recipient_stats['total_requests']); ?></p>
                         </div>
                         <div class="stat-item">
-                            <label>Completed Pickups</label>
-                            <p class="value"><?php echo intval($donation_stats['completed_pickups']); ?></p>
+                            <label><i class="fas fa-clock"></i>Pending Requests</label>
+                            <p class="value"><?php echo intval($recipient_stats['pending_requests']); ?></p>
+                        </div>
+                        <div class="stat-item">
+                            <label><i class="fas fa-check-circle"></i>Received Donations</label>
+                            <p class="value"><?php echo intval($recipient_stats['received_donations']); ?></p>
                         </div>
                     </div>
                 </div>

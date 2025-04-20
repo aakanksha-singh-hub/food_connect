@@ -817,23 +817,37 @@ try {
         }
 
         .stat-item {
-            padding: 0.75rem;
-            border-radius: 6px;
+            padding: 1rem;
+            border-radius: 8px;
             background: var(--background-alt);
-            margin-bottom: 0.75rem;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border);
+            transition: var(--transition);
+        }
+
+        .stat-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
         }
 
         .stat-item label {
             font-size: 0.875rem;
             color: var(--text-light);
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.5rem;
             display: block;
+            font-weight: 500;
         }
 
         .stat-item .value {
-            font-size: 1.25rem;
+            font-size: 1.5rem;
             font-weight: 600;
             color: var(--text);
+            margin: 0;
+        }
+
+        .stat-item i {
+            color: var(--primary);
+            margin-right: 0.5rem;
         }
 
         /* Modal Styles */
@@ -1195,15 +1209,15 @@ try {
                     <div class="card">
                         <h4><i class="fas fa-chart-line"></i> Activity Overview</h4>
                         <div class="stat-item">
-                            <label>Total Pickups</label>
+                            <label><i class="fas fa-box"></i>Total Pickups</label>
                             <p class="value"><?php echo intval($volunteer_stats['total_pickups']); ?></p>
                         </div>
                         <div class="stat-item">
-                            <label>Completed Pickups</label>
+                            <label><i class="fas fa-check-circle"></i>Completed Pickups</label>
                             <p class="value"><?php echo intval($volunteer_stats['completed_pickups']); ?></p>
                         </div>
                         <div class="stat-item">
-                            <label>Active Pickups</label>
+                            <label><i class="fas fa-clock"></i>Active Pickups</label>
                             <p class="value"><?php echo intval($volunteer_stats['active_pickups']); ?></p>
                         </div>
                     </div>

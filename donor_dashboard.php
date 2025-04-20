@@ -633,6 +633,40 @@ try {
             margin-left: 1rem;
             gap: 0.375rem;
         }
+
+        .stat-item {
+            padding: 1rem;
+            border-radius: 8px;
+            background: var(--background-alt);
+            margin-bottom: 1rem;
+            border: 1px solid var(--border);
+            transition: var(--transition);
+        }
+
+        .stat-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .stat-item label {
+            font-size: 0.875rem;
+            color: var(--text-light);
+            margin-bottom: 0.5rem;
+            display: block;
+            font-weight: 500;
+        }
+
+        .stat-item .value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text);
+            margin: 0;
+        }
+
+        .stat-item i {
+            color: var(--primary);
+            margin-right: 0.5rem;
+        }
     </style>
 </head>
 <body>
@@ -911,15 +945,15 @@ try {
                             Donation Statistics
                         </h4>
                         <div class="stat-item">
-                            <label>Total Donations</label>
+                            <label><i class="fas fa-hand-holding-heart"></i>Total Donations</label>
                             <p class="value"><?php echo $donation_stats['total_donations']; ?></p>
                         </div>
                         <div class="stat-item">
-                            <label>Available Donations</label>
+                            <label><i class="fas fa-box-open"></i>Available Donations</label>
                             <p class="value"><?php echo $donation_stats['available_donations']; ?></p>
                         </div>
                         <div class="stat-item">
-                            <label>Accepted Donations</label>
+                            <label><i class="fas fa-check-circle"></i>Accepted Donations</label>
                             <p class="value"><?php echo $donation_stats['accepted_donations']; ?></p>
                         </div>
                     </div>

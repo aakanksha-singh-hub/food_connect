@@ -12,7 +12,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $lastName = trim($_POST['lastName']);
         $email = filter_var(trim($_POST['email']), FILTER_SANITIZE_EMAIL);
         $phone = trim($_POST['phone']);
-        $password = $_POST['password'];
+    $password = $_POST['password'];
         $confirmPassword = $_POST['confirmPassword'];
         $userType = trim($_POST['userType']);
         $location = trim($_POST['location']);
@@ -47,7 +47,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
 
         // Hash password
-        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
         // Insert new user
         $stmt = $pdo->prepare("
