@@ -1,0 +1,28 @@
+# Configuration files
+config.php
+database/db_connect.php
+*.config.php
+.env
+
+# IDE specific files
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Dependency directories
+/vendor/
+/node_modules/
+
+# Logs
+*.log
+error_log 
