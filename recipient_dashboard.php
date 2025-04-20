@@ -49,24 +49,34 @@ try {
 }
 
 // Fetch statistics
+// Fetch recipient statistics
 try {
     $stats_stmt = $pdo->prepare("
         SELECT 
-            COUNT(*) as total_donations,
-            COUNT(CASE WHEN p.status = 'completed' THEN 1 END) as completed_pickups
+            COUNT(*) as total_requests,
+            COUNT(CASE WHEN d.status = 'available' OR d.status = 'accepted' OR d.status = 'in_transit' THEN 1 END) as pending_requests,
+            COUNT(CASE WHEN d.status = 'delivered' THEN 1 END) as received_donations
         FROM donations d
-        LEFT JOIN pickups p ON d.id = p.donation_id
         WHERE d.recipient_id = :recipient_id
     ");
     
     $stats_stmt->execute(['recipient_id' => $recipient_id]);
-    $donation_stats = $stats_stmt->fetch(PDO::FETCH_ASSOC);
+    $recipient_stats = $stats_stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$recipient_stats) {
+        $recipient_stats = [
+            'total_requests' => 0,
+            'pending_requests' => 0,
+            'received_donations' => 0
+        ];
+    }
 
 } catch (PDOException $e) {
     error_log("Database error: " . $e->getMessage());
-    $donation_stats = [
-        'total_donations' => 0,
-        'completed_pickups' => 0
+    $recipient_stats = [
+        'total_requests' => 0,
+        'pending_requests' => 0,
+        'received_donations' => 0
     ];
 }
 
@@ -622,7 +632,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['accept_donation'])) {
 
         /* Footer */
         .footer {
-            margin-top: auto;
+            margin-top: 1rem;
             background: var(--background);
             border-top: 1px solid var(--border);
             padding: 3rem 0 1.5rem;
