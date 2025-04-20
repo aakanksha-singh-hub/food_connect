@@ -241,6 +241,8 @@ try {
         }
 
         .welcome-header h1 {
+            display: flex;
+            align-items: center;
             font-size: 1.875rem;
             font-weight: 700;
             color: var(--text);
@@ -618,6 +620,19 @@ try {
                 display: block;
             }
         }
+
+        .role-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.375rem 0.75rem;
+            background: var(--primary-light);
+            color: var(--primary);
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-left: 1rem;
+            gap: 0.375rem;
+        }
     </style>
 </head>
 <body>
@@ -642,7 +657,13 @@ try {
     <!-- Main Content -->
     <div class="main-content">
         <div class="welcome-header">
-            <h1>Welcome, <?php echo htmlspecialchars($user_profile['first_name'] ?? 'Donor'); ?></h1>
+            <h1>
+                Welcome, <?php echo htmlspecialchars($user_profile['first_name'] ?? 'Donor'); ?>
+                <span class="role-badge">
+                    <i class="fas fa-user-tag"></i>
+                    Donor
+                </span>
+            </h1>
             <div class="location-info">
                 <i class="fas fa-map-marker-alt"></i>
                 <span><?php echo htmlspecialchars($user_profile['location'] ?? 'Location not set'); ?></span>
@@ -669,18 +690,30 @@ try {
 
         <!-- Dashboard Overview -->
         <div id="dashboard" class="tab-content active">
-            <h2 class="section-title">Overview</h2>
+            <h2 class="section-title">
+                <i class="fas fa-chart-pie"></i>
+                Overview
+            </h2>
             <div class="dashboard-grid">
                 <div class="card">
-                    <h4>Total Donations</h4>
+                    <h4>
+                        <i class="fas fa-hand-holding-heart"></i>
+                        Total Donations
+                    </h4>
                     <p class="stat"><?php echo $donation_stats['total_donations']; ?> donations made</p>
                 </div>
                 <div class="card">
-                    <h4>Available Donations</h4>
+                    <h4>
+                        <i class="fas fa-box-open"></i>
+                        Available Donations
+                    </h4>
                     <p class="stat"><?php echo $donation_stats['available_donations']; ?> donations waiting</p>
                 </div>
                 <div class="card">
-                    <h4>Accepted Donations</h4>
+                    <h4>
+                        <i class="fas fa-check-circle"></i>
+                        Accepted Donations
+                    </h4>
                     <p class="stat"><?php echo $donation_stats['accepted_donations']; ?> donations accepted</p>
                 </div>
             </div>
@@ -688,7 +721,10 @@ try {
 
         <!-- Donate Food Form -->
         <div id="donate" class="tab-content">
-            <h2 class="section-title">Donate Food</h2>
+            <h2 class="section-title">
+                <i class="fas fa-gift"></i>
+                Donate Food
+            </h2>
             <div class="form-section">
                 <form method="POST" action="donor_dashboard.php">
                     <div class="form-grid">
@@ -722,7 +758,10 @@ try {
 
         <!-- Available Donations -->
         <div id="available" class="tab-content">
-            <h2 class="section-title">Available Donations</h2>
+            <h2 class="section-title">
+                <i class="fas fa-box-open"></i>
+                Available Donations
+            </h2>
             <div class="dashboard-grid">
                 <?php foreach ($available_donations as $donation): ?>
                     <div class="card">
@@ -761,7 +800,10 @@ try {
 
         <!-- Accepted Donations -->
         <div id="accepted" class="tab-content">
-            <h2 class="section-title">Accepted Donations</h2>
+            <h2 class="section-title">
+                <i class="fas fa-check-circle"></i>
+                Accepted Donations
+            </h2>
             <div class="dashboard-grid">
                 <?php foreach ($accepted_donations as $donation): ?>
                     <div class="card">
@@ -823,7 +865,10 @@ try {
 
         <!-- Profile Section -->
         <div id="profile" class="tab-content">
-            <h2 class="section-title">Profile Information</h2>
+            <h2 class="section-title">
+                <i class="fas fa-user"></i>
+                Profile Information
+            </h2>
             <div class="profile-section">
                 <div class="profile-grid">
                     <div class="card profile-card">
@@ -861,7 +906,10 @@ try {
                         </div>
                     </div>
                     <div class="card">
-                        <h4>Donation Statistics</h4>
+                        <h4>
+                            <i class="fas fa-chart-bar"></i>
+                            Donation Statistics
+                        </h4>
                         <div class="stat-item">
                             <label>Total Donations</label>
                             <p class="value"><?php echo $donation_stats['total_donations']; ?></p>

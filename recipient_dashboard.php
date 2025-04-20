@@ -315,10 +315,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['accept_donation'])) {
         }
 
         .welcome-header h1 {
+            display: flex;
+            align-items: center;
             font-size: 1.875rem;
             font-weight: 700;
             color: var(--text);
             margin-bottom: 0.5rem;
+        }
+
+        .role-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.375rem 0.75rem;
+            background: var(--primary-light);
+            color: var(--primary);
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-left: 1rem;
+            gap: 0.375rem;
         }
 
         .location-info {
@@ -778,7 +793,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['accept_donation'])) {
 
     <div class="main-content">
         <div class="welcome-header">
-            <h1>Welcome, <?php echo htmlspecialchars($_SESSION['first_name'] ?? 'Recipient'); ?></h1>
+            <h1>
+                Welcome, <?php echo htmlspecialchars($_SESSION['first_name'] ?? 'Recipient'); ?>
+                <span class="role-badge">
+                    <i class="fas fa-user-tag"></i>
+                    Recipient
+                </span>
+            </h1>
             <div class="location-info">
                 <i class="fas fa-map-marker-alt"></i>
                 <span><?php echo htmlspecialchars($_SESSION['location'] ?? 'Location'); ?></span>

@@ -477,6 +477,8 @@ try {
         }
 
         .welcome-header h1 {
+            display: flex;
+            align-items: center;
             font-size: 1.875rem;
             font-weight: 700;
             color: var(--text);
@@ -850,6 +852,19 @@ try {
         .btn-secondary:hover {
             background: var(--border);
         }
+
+        .role-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.375rem 0.75rem;
+            background: var(--primary-light);
+            color: var(--primary);
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-left: 1rem;
+            gap: 0.375rem;
+        }
     </style>
 </head>
 <body>
@@ -873,7 +888,13 @@ try {
 
     <div class="main-content">
         <div class="welcome-header">
-            <h1>Welcome, <?php echo htmlspecialchars($_SESSION['first_name'] ?? 'Volunteer'); ?></h1>
+            <h1>
+                Welcome, <?php echo htmlspecialchars($_SESSION['first_name'] ?? 'Volunteer'); ?>
+                <span class="role-badge">
+                    <i class="fas fa-user-tag"></i>
+                    Volunteer
+                </span>
+            </h1>
             <div class="location-info">
                 <i class="fas fa-map-marker-alt"></i>
                 <span><?php echo htmlspecialchars($_SESSION['location'] ?? 'Location not set'); ?></span>
