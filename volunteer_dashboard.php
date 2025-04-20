@@ -286,20 +286,48 @@ try {
 
 // Fetch volunteer statistics
 try {
-    $stats_stmt = $pdo->prepare("
-        SELECT 
-            COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_pickups,
-            COUNT(CASE WHEN status = 'pending' AND volunteer_id = :volunteer_id THEN 1 END) as active_pickups
-        FROM pickups 
-        WHERE volunteer_id = :volunteer_id
+    // Get total pickups
+    $total_stmt = $pdo->prepare("SELECT COUNT(*) FROM pickups WHERE volunteer_id = ?");
+    $total_stmt->execute([$volunteer_id]);
+    $total_pickups = $total_stmt->fetchColumn();
+
+    // Get completed pickups
+    $completed_stmt = $pdo->prepare("SELECT COUNT(*) FROM pickups WHERE volunteer_id = ? AND status = 'completed'");
+    $completed_stmt->execute([$volunteer_id]);
+    $completed_pickups_count = $completed_stmt->fetchColumn();
+
+    // Get active (assigned) pickups
+    $active_stmt = $pdo->prepare("SELECT COUNT(*) FROM pickups WHERE volunteer_id = ? AND status != 'completed'");
+    $active_stmt->execute([$volunteer_id]);
+    $active_pickups_count = $active_stmt->fetchColumn();
+
+    // Debug logging
+    error_log("Volunteer ID: " . $volunteer_id);
+    error_log("Total pickups: " . $total_pickups);
+    error_log("Completed pickups: " . $completed_pickups_count);
+    error_log("Active pickups: " . $active_pickups_count);
+
+    // Double check assigned pickups count directly
+    $check_stmt = $pdo->prepare("
+        SELECT p.id, p.status, d.status as donation_status 
+        FROM pickups p 
+        JOIN donations d ON p.donation_id = d.id 
+        WHERE p.volunteer_id = ? AND p.status != 'completed'
     ");
-    
-    $stats_stmt->execute(['volunteer_id' => $volunteer_id]);
-    $volunteer_stats = $stats_stmt->fetch(PDO::FETCH_ASSOC);
+    $check_stmt->execute([$volunteer_id]);
+    $active_details = $check_stmt->fetchAll(PDO::FETCH_ASSOC);
+    error_log("Active pickups details: " . print_r($active_details, true));
+
+    $volunteer_stats = [
+        'total_pickups' => $total_pickups,
+        'completed_pickups' => $completed_pickups_count,
+        'active_pickups' => $active_pickups_count
+    ];
 
 } catch (PDOException $e) {
     error_log("Database error: " . $e->getMessage());
     $volunteer_stats = [
+        'total_pickups' => 0,
         'completed_pickups' => 0,
         'active_pickups' => 0
     ];
@@ -628,9 +656,15 @@ try {
 
         /* Messages */
         .message {
-            margin: 1rem auto;
             max-width: var(--container-width);
             width: calc(100% - 4rem);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+            line-height: 1.5;
         }
 
         .success {
@@ -1159,7 +1193,11 @@ try {
                         </div>
                     </div>
                     <div class="card">
-                        <h4>Activity Overview</h4>
+                        <h4><i class="fas fa-chart-line"></i> Activity Overview</h4>
+                        <div class="stat-item">
+                            <label>Total Pickups</label>
+                            <p class="value"><?php echo intval($volunteer_stats['total_pickups']); ?></p>
+                        </div>
                         <div class="stat-item">
                             <label>Completed Pickups</label>
                             <p class="value"><?php echo intval($volunteer_stats['completed_pickups']); ?></p>
