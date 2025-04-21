@@ -1,5 +1,9 @@
 # Food Connect - Food Donation Management System
 
+
+https://github.com/user-attachments/assets/36ae3316-6058-43ca-a4b3-c5da16b4d373
+
+
 ## Project Overview
 Food Connect is a web-based platform that connects food donors with volunteers and recipients to facilitate food donation and distribution. The system helps reduce food waste and ensures that surplus food reaches those in need.
 
